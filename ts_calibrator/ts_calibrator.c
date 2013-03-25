@@ -43,13 +43,13 @@
 static const char fb_dev[] = "/dev/graphics/fb0";
 static const char input_dev[] = "/dev/input/event";
 static const char cf_file[] = "/data/system/calibration";
-static const char log[] = "/ts.log";
+static const char log[] = "/data/system/ts.log";
 static const char dev_name[] = TS_INPUT_DEV;
 static int log_fd;
 static struct fb_var_screeninfo info;
 static void *scrbuf;
 static int fb_fd, ts_fd, cf_fd;
-static int cal_val[7];
+static int cal_val[9];
 
 static void log_write(const char *fmt, ...)
 {
@@ -71,17 +71,17 @@ static void write_conf(int *data)
     char buf[200];
     int fd, len;
 
-    sprintf(param_path,
-	    "/sys/module/%s/parameters/calibration", dev_name);
+    strcpy(param_path,
+	    "/sys/devices/platform/imx6q-ecspi.1/spi1.0/calibration");
     fd = open(param_path, O_WRONLY);
     if (fd < 0) {
 	log_write("write_conf() error, can not write driver parameters\n");
 	return;
     }
-    len = sprintf(buf, "%d,%d,%d,%d,%d,%d,%d",
+    len = sprintf(buf, "%d,%d,%d,%d,%d,%d,%d,%d,%d",
 			    data[0], data[1], data[2],
 			    data[3], data[4], data[5],
-			    data[6]);
+			    data[6], data[7], data[8]);
     log_write("write_conf(), write driver parameters:\n\t%s\n", buf);
     write(fd, buf, len);
     close(fd);
@@ -98,10 +98,10 @@ static void save_conf(int *data)
 	return;
     }
 
-    len = sprintf(buf, "%d\n%d\n%d\n%d\n%d\n%d\n%d",
+    len = sprintf(buf, "%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d",
 			    data[0], data[1], data[2],
 			    data[3], data[4], data[5],
-			    data[6]);
+			    data[6], data[7], data[8]);
     write(cf_fd, buf, len);
     close(cf_fd);
 }
@@ -181,21 +181,21 @@ static void draw_cross(int x, int y, int clear)
     case 24:
 	buf += h_start;
 	for (i = 0; i <= LINE_LEN; i ++) {
-	    *buf++ = *((__u8*)pixel + 2);
-	    *buf++ = *((__u8*)pixel + 1);
-	    *buf++ = *(__u8*)pixel;
+	    *buf++ = (__u8)pixel;
+	    *buf++ = (__u8)pixel;
+	    *buf++ = (__u8)pixel;
 	}
 	buf = (__u8*)scrbuf + v_start;
 	for (i = 0; i <= LINE_LEN; i ++) {
-	    *buf++ = *((__u8*)pixel + 2);
-	    *buf++ = *((__u8*)pixel + 1);
-	    *buf = *(__u8*)pixel;
+	    *buf++ = (__u8)pixel;
+	    *buf++ = (__u8)pixel;
+	    *buf = (__u8)pixel;
 	    buf += info.xres * px_byte - 2;
 	}
 	break;
     case 32:
 	buf32 = (__u32*)((__u8*)scrbuf + h_start);
-	pixel &= (((1 << info.transp.length) - 1) << info.transp.offset);
+	//pixel &= (((1 << info.transp.length) - 1) << info.transp.offset);
 	for (i = 0; i <= LINE_LEN; i ++)
 	    *buf32++ = pixel;
 	buf32 = (__u32*)((__u8*)scrbuf + v_start);
@@ -263,6 +263,8 @@ retry:
     cal_val[4] = delta_y[1];
     cal_val[5] = delta_y[2];
     cal_val[6] = delta;
+    cal_val[7] = info.xres;
+    cal_val[8] = info.yres;
 
     save_conf(cal_val);
     write_conf(cal_val);
@@ -295,7 +297,7 @@ static void test_calibration(void)
 
 static int check_conf(void)
 {
-    int data[7];
+    int data[9];
     char *buffer;
     int ret;
     struct stat s;
@@ -307,11 +309,11 @@ static int check_conf(void)
 	if (cf_fd >= 0) {
 	    buffer = calloc(1, s.st_size + 1);
 	    read(cf_fd, buffer, s.st_size);
-	    ret = sscanf(buffer, "%d\n%d\n%d\n%d\n%d\n%d\n%d",
+	    ret = sscanf(buffer, "%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d",
 				&data[0], &data[1], &data[2],
 				&data[3], &data[4], &data[5],
-				&data[6]);
-	    if (ret == 7) {
+				&data[6], &data[7], &data[8]);
+	    if (ret == 9) {
 		free(buffer);
 		/* write to driver */
 		write_conf(data);
@@ -354,6 +356,8 @@ int main(int argc, char **argv)
 	goto err_fb;
     }
     log_write("Screen resolution: %dx%d\n", info.xres, info.yres);
+    log_write("bits_per_pixel: %d\n", info.bits_per_pixel);
+
     /* map buffer */
     if (ioctl(fb_fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
 	log_write("Failed to get screen info: %d\n", errno);
@@ -427,7 +431,7 @@ int main(int argc, char **argv)
 
     log_write("Calibration done!!\n");
 
-    //test_calibration();
+//    test_calibration();
 
     close(ts_fd);
 err_map:
