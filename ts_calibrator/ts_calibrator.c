@@ -42,8 +42,8 @@
 
 static const char fb_dev[] = "/dev/graphics/fb0";
 static const char input_dev[] = "/dev/input/event";
-static const char cf_file[] = "/data/system/calibration";
-static const char log[] = "/data/system/ts.log";
+static const char cf_file[] = "/data/calibration";
+static const char log[] = "/data/ts.log";
 static const char dev_name[] = TS_INPUT_DEV;
 static const char sys_path[] = TS_SYS_PATH;
 static int log_fd;
