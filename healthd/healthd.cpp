@@ -157,7 +157,7 @@ static void uevent_event(void) {
 static void wakealarm_init(void) {
     wakealarm_fd = timerfd_create(CLOCK_BOOTTIME_ALARM, TFD_NONBLOCK);
     if (wakealarm_fd == -1) {
-        KLOG_ERROR(LOG_TAG, "wakealarm_init: timerfd_create failed\n");
+        KLOG_ERROR(LOG_TAG, "wakealarm_init: timerfd_create failed %d\n", errno);
         return;
     }
 
@@ -168,7 +168,7 @@ static void wakealarm_event(void) {
     unsigned long long wakeups;
 
     if (read(wakealarm_fd, &wakeups, sizeof(wakeups)) == -1) {
-        KLOG_ERROR(LOG_TAG, "wakealarm_event: read wakealarm_fd failed\n");
+        KLOG_ERROR(LOG_TAG, "wakealarm_event: read wakealarm_fd failed %d\n", errno);
         return;
     }
 
